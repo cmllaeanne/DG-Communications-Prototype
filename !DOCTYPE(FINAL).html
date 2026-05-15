@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DG Comms - Final Presentation Prototype</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            --bg-dark: #071022; --bg-panel: #0d1e3d; --border-color: #1a2d5c;
+            --accent-blue: #0078d4; --accent-red: #e2231a; --accent-green: #00d287; --accent-orange: #f5a623;
+            --text-main: #ffffff; --text-muted: #8a9bbd; --font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        
+        /* Master Layout Fixes */
+        body { font-family: var(--font-family); margin: 0; display: flex; width: 100vw; height: 100vh; background-color: var(--bg-dark); color: var(--text-main); overflow: hidden; }
+        
+        .global-sidebar { width: 75px; flex-shrink: 0; background: #040914; display: flex; flex-direction: column; align-items: center; padding: 25px 0; z-index: 30; border-right: 1px solid var(--border-color);}
+        .inbox-sidebar { width: 300px; flex-shrink: 0; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; z-index: 20;}
+        .main-area { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; background: radial-gradient(circle at top right, #11234c 0%, var(--bg-dark) 50%); } /* min-width:0 is the flexbox scrolling fix */
+        
+        /* Sidebar Elements */
+        .global-sidebar .logo { font-size: 1.4em; font-weight: 900; margin-bottom: 40px; }
+        .global-sidebar .logo span { color: var(--accent-blue); }
+        .icon-btn { color: var(--text-muted); font-size: 1.5em; margin-bottom: 30px; cursor: pointer; transition: 0.2s;}
+        .icon-btn:hover, .icon-btn.active { color: var(--accent-blue); }
+        .inbox-header { padding: 25px 20px; border-bottom: 1px solid var(--border-color);}
+        .search-bar { width: 100%; padding: 10px 15px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-dark); color: white; margin-top: 15px;}
+        .channel-list { flex-grow: 1; overflow-y: auto; padding: 15px 0; }
+        .channel { padding: 12px 20px; cursor: pointer; display: flex; align-items: center; color: #cbd5e1; font-size: 0.95em; transition: 0.2s;}
+        .channel.active { background: rgba(0,120,212,0.1); border-left: 4px solid var(--accent-blue); color: #fff; font-weight: 600;}
+        .channel i { margin-right: 12px; }
+
+        /* Main Header */
+        .main-header { padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 1px solid var(--border-color);}
+        .ticket-btn { background: var(--accent-orange); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s;}
+        .ticket-btn:hover { background: #d97706; }
+
+        /* Views (Home vs Chat) */
+        .view-container { flex: 1; min-height: 0; position: relative; }
+        .view { display: none; flex-direction: column; height: 100%; width: 100%; }
+        .view.active { display: flex; }
+
+        /* Tabs (Inside Home View) */
+        .tab-nav { display: flex; padding: 0 40px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; background: var(--bg-panel);}
+        .tab-nav-item { padding: 15px 25px; cursor: pointer; color: var(--text-muted); font-weight: 600; position: relative; transition: 0.2s;}
+        .tab-nav-item:hover { color: white; }
+        .tab-nav-item.active { color: var(--accent-blue); }
+        .tab-nav-item::after { content: ''; position: absolute; bottom: 0; left: 50%; width: 0; height: 3px; background: var(--accent-blue); transition: 0.3s; transform: translateX(-50%);}
+        .tab-nav-item.active::after { width: 100%; }
+
+        /* Tab Panels */
+        .tab-content-area { flex: 1; min-height: 0; position: relative; }
+        .tab-panel { display: none; height: 100%; width: 100%; overflow-y: auto; padding: 30px 40px; }
+        .tab-panel.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Dashboard & Accordions */
+        .dash-card { background: rgba(13,30,61,0.8); padding: 30px; border-radius: 12px; border: 1px solid #1a2d5c; margin-bottom: 30px;}
+        .accordion-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; cursor: pointer; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 5px;}
+        .accordion-header:hover { background: rgba(0,120,212,0.1); }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; background: rgba(0,0,0,0.1); border-radius: 0 0 8px 8px;}
+        .accordion-content.open { max-height: 600px; overflow-y: auto; margin-bottom: 10px; }
+        .pbc-sub-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9em;}
+        .pbc-fund-group { font-weight: bold; color: var(--text-muted); padding: 15px 20px 5px 20px; font-size: 0.8em; text-transform: uppercase;}
+        .dg-link { color: var(--accent-blue); text-decoration: none; font-weight: 600; background: rgba(0,120,212,0.1); padding: 4px 10px; border-radius: 4px; transition: 0.2s;}
+        .dg-link:hover { background: var(--accent-blue); color: white; }
+
+        /* Compliance Tracker (Strict Scroll Fix) */
+        .tracker-wrapper { overflow: auto; height: 100%; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-panel);}
+        .compliance-tracker-table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 0.85em; min-width: 2200px; }
+        .compliance-tracker-table thead th { background: #071022; position: sticky; top: 0; z-index: 2; padding: 15px; text-align: left; border-bottom: 2px solid var(--accent-blue);}
+        .compliance-tracker-table tbody td { border-bottom: 1px solid var(--border-color); padding: 12px 15px; white-space: nowrap; }
+        .compliance-tracker-table tbody tr:hover td { background: rgba(255,255,255,0.03); }
+        .fund-group td { font-weight: bold; font-size: 1.1em; background: #11234c; padding-top: 20px;}
+        .owner-avatar { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; border: 2px solid var(--border-color);}
+        
+        .badge { padding: 4px 10px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;}
+        .bd-d { background: rgba(0,210,135,0.1); color: var(--accent-green);} .bd-w { background: rgba(245,166,35,0.1); color: var(--accent-orange);} .bd-e { background: rgba(226,35,26,0.1); color: var(--accent-red);}
+
+        /* Analytics */
+        .analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px; margin-bottom: 30px;}
+        .kpi-card { background: var(--bg-panel); padding: 25px; border-radius: 12px; text-align: center; border: 1px solid var(--border-color);}
+        .kpi-card .value { font-size: 2.5em; font-weight: 700; }
+        .chart-card { background: var(--bg-panel); padding: 25px; border-radius: 12px; border: 1px solid var(--border-color);}
+        .bar-chart .bar { background-color: var(--accent-blue); margin-bottom: 10px; color: white; padding: 8px 12px; border-radius: 4px; font-size: 0.9em;}
+
+        /* Architecture */
+        .arch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .arch-card { background: var(--bg-panel); padding: 30px; border-radius: 12px; border-left: 4px solid var(--accent-blue); position: relative; border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);}
+        
+        /* Chat View */
+        .chat-sidebar { width: 280px; background-color: rgba(0,0,0,0.2); border-right: 1px solid var(--border-color); padding: 20px 0; flex-shrink: 0; overflow-y: auto;}
+        .chat-channel { padding: 12px 25px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; transition: 0.2s;}
+        .chat-channel:hover { background: rgba(255,255,255,0.05); color: white;}
+        .chat-channel.active { background: rgba(0,120,212,0.1); color: white; font-weight: 600; border-left: 3px solid var(--accent-blue);}
+        .chat-channel i { margin-right: 10px; width: 15px;}
+        .chat-main { flex: 1; display: flex; flex-direction: column; padding: 30px; min-width: 0;}
+        .msg { display: flex; gap: 15px; margin-bottom: 20px;}
+        .msg-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;}
+        .msg-content { background: rgba(255,255,255,0.03); padding: 15px 20px; border-radius: 12px; border-top-left-radius: 0; border: 1px solid rgba(255,255,255,0.05);}
+        .chat-input { display: flex; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 12px; border: 1px solid var(--border-color); margin-top: 20px;}
+        .chat-input input { flex-grow: 1; background: transparent; border: none; color: white; outline: none; padding: 5px 10px; font-size: 1em; font-family: var(--font-family);}
+
+        /* Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 1000; display: none; align-items: center; justify-content: center;}
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: var(--bg-panel); padding: 40px; border-radius: 12px; width: 500px; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.5);}
+    </style>
+</head>
+<body>
+
+    <!-- Ticket Submission Modal -->
+    <div id="ticket-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div style="display:flex; justify-content: space-between; margin-bottom: 20px;">
+                <h3 style="margin: 0; font-size: 1.5em;">Submit Troubleshooting Ticket</h3>
+                <button onclick="document.getElementById('ticket-modal').classList.remove('active')" style="background:none; border:none; color:var(--text-muted); font-size: 1.5em; cursor:pointer;">&times;</button>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display:block; margin-bottom:8px; color:var(--text-muted); font-weight:600;">Link to Workpaper (from DG Docs)</label>
+                <input type="text" style="width:100%; background:var(--bg-dark); border:1px solid var(--border-color); color:white; padding:12px; border-radius:6px; box-sizing: border-box;" placeholder="Paste DG Docs link here...">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display:block; margin-bottom:8px; color:var(--text-muted); font-weight:600;">Issue Description</label>
+                <textarea style="width:100%; background:var(--bg-dark); border:1px solid var(--border-color); color:white; padding:12px; border-radius:6px; box-sizing: border-box;" rows="4" placeholder="Describe the issue..."></textarea>
+            </div>
+            <div style="text-align:right; margin-top:30px;">
+                <button class="ticket-btn" onclick="alert('API Call: Ticket successfully submitted to ServiceNow!'); document.getElementById('ticket-modal').classList.remove('active')">Create Ticket</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Sidebar (Icon Navigation) -->
+    <div class="global-sidebar">
+        <div class="logo">DG<span style="color:var(--accent-blue);">.</span></div>
+        <i class="fas fa-home icon-btn active" onclick="switchMainView('view-home', this)" title="Engagement Homepage"></i>
+        <i class="fas fa-comments icon-btn" onclick="switchMainView('view-chat', this)" title="Engagement Chat"></i>
+    </div>
+
+    <!-- Inbox Sidebar (Client Switcher) -->
+    <div class="inbox-sidebar">
+        <div class="inbox-header"><h2 style="margin:0; font-size: 1.2em;">Engagement Hub</h2></div>
+        <div style="padding: 0 15px;">
+            <input type="text" class="search-bar" id="search-engagements" placeholder="Search engagements..." onkeyup="filterEngagements()">
+        </div>
+        <div class="channel-list" id="engagement-list">
+            <div style="font-size:0.7em;color:#5a6e9a;padding:10px 20px;font-weight:800;letter-spacing:1px;">MY ENGAGEMENTS</div>
+            <div class="channel active" id="nav-alpha" onclick="switchClient('alpha')"><i class="fas fa-briefcase"></i> Alpha Growth Funds</div>
+            <div class="channel" id="nav-beta" onclick="switchClient('beta')"><i class="fas fa-briefcase"></i> Beta Holdings</div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-area">
+        
+        <!-- Header with DG Comms Logo -->
+        <div class="main-header">
+            <div>
+                <div style="font-size:1.8em; font-weight:800; letter-spacing:-1px;">DG <span style="color:var(--accent-blue);">Comms</span></div>
+                <div style="font-size:1.5em; font-weight:700; margin-top:10px;" id="header-title">Alpha Growth Funds</div>
+                <div style="color:var(--text-muted); font-size:0.9em; margin-top:5px;">Target Sign-off: 5/26/2026</div>
+            </div>
+            <button class="ticket-btn" onclick="document.getElementById('ticket-modal').classList.add('active')"><i class="fas fa-plus"></i> Submit Ticket</button>
+        </div>
+
+        <div class="view-container">
+            
+            <!-- 1. HOMEPAGE VIEW (Tabs) -->
+            <div id="view-home" class="view active">
+                
+                <nav class="tab-nav">
+                    <div class="tab-nav-item active" onclick="showTab('tab-dash')">Dashboard</div>
+                    <div class="tab-nav-item" onclick="showTab('tab-analytics')">Analytics</div>
+                    <div class="tab-nav-item" onclick="showTab('tab-tracker')">Compliance Tracker</div>
+                    <div class="tab-nav-item" onclick="showTab('tab-arch')"><i class="fas fa-project-diagram" style="margin-right:8px;"></i> Architecture</div>
+                </nav>
+
+                <div class="tab-content-area">
+                    
+                    <!-- DASHBOARD TAB -->
+                    <div id="tab-dash" class="tab-panel active">
+                        <div id="dash-grid-content">
+                            <!-- Loaded via JS -->
+                        </div>
+                    </div>
+
+                    <!-- ANALYTICS TAB -->
+                    <div id="tab-analytics" class="tab-panel">
+                        <div class="analytics-grid">
+                            <div class="kpi-card">
+                                <div class="value" style="color:var(--accent-green)">84%</div>
+                                <div class="label">Overall Completion</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value" style="color:var(--accent-orange)">4</div>
+                                <div class="label">Active Blockers</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="value" style="color:var(--accent-red)">2</div>
+                                <div class="label">Missed Client Deadlines</div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; gap: 30px;">
+                            <div class="chart-card" style="flex:1;">
+                                <h3 style="margin-top:0; color:var(--text-muted);">Task Completion by Entity</h3>
+                                <div class="bar-chart">
+                                    <div class="bar" style="width: 100%;">Alpha Fund I (100%)</div>
+                                    <div class="bar" style="width: 80%;">North Res Holdings (80%)</div>
+                                    <div class="bar" style="width: 45%; background-color: var(--accent-orange);">Alpha Guarantee LP (45%)</div>
+                                </div>
+                            </div>
+                            <div class="chart-card" style="flex:1;">
+                                <h3 style="margin-top:0; color:var(--text-muted);">Team Workload (Active Items)</h3>
+                                <div class="bar-chart">
+                                    <div class="bar" style="width: 90%; background-color: #8e44ad;">Sarah J. (18 Items)</div>
+                                    <div class="bar" style="width: 60%; background-color: #8e44ad;">Alex T. (12 Items)</div>
+                                    <div class="bar" style="width: 20%; background-color: #8e44ad;">Michael D. (4 Items)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COMPLIANCE TRACKER TAB -->
+                    <div id="tab-tracker" class="tab-panel" style="padding: 20px;">
+                        <div class="tracker-wrapper">
+                            <table class="compliance-tracker-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fund</th> 
+                                        <th>Entity</th> 
+                                        <th>Current Owner</th> 
+                                        <th>WP Status</th> 
+                                        <th>K-1s Completed</th>
+                                        <th>M-3 Tab</th> 
+                                        <th>Sent to KGS</th>
+                                        <th>KGS Status</th>
+                                        <th>Overall Status</th> 
+                                        <th>Partner Sign Off</th> 
+                                        <th>Posting - Bridge</th> 
+                                        <th>Client Approved</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tracker-body">
+                                    <!-- Loaded via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ARCHITECTURE TAB -->
+                    <div id="tab-arch" class="tab-panel">
+                        <h2 style="margin-top:0; margin-bottom: 30px; font-weight: 300;">System Integration Architecture</h2>
+                        <div class="arch-grid">
+                            <div class="arch-card">
+                                <i class="fas fa-database arch-icon"></i>
+                                <h3>Data Ingestion (Read Layer)</h3>
+                                <p>DG Comms connects to the <strong>Digital Gateway API</strong> using OAuth2 (Azure AD) authentication. This read-only access fetches real-time engagement data from the Digital Gateway-DB to populate the Compliance Tracker and Executive Dashboards.</p>
+                            </div>
+                            <div class="arch-card">
+                                <i class="fas fa-link arch-icon"></i>
+                                <h3>Document Links (Jump Layer)</h3>
+                                <p>Instead of replicating files, the PBC dashboard uses <strong>Microsoft Graph API</strong> to construct direct, deep-linked URLs. Clicking [DG Docs] jumps the user directly into the secure SharePoint Online (SPO) environment where the file lives.</p>
+                            </div>
+                            <div class="arch-card">
+                                <i class="fas fa-sync-alt arch-icon"></i>
+                                <h3>Status Syncing (Write Layer)</h3>
+                                <p>When a manager updates a status in the Compliance Tracker, DG Comms makes a <code>POST</code> request back to the Digital Gateway API. This ensures the central database is updated in real-time. Ticketing integration relies on <strong>ServiceNow REST APIs</strong>.</p>
+                            </div>
+                            <div class="arch-card">
+                                <i class="fab fa-microsoft arch-icon"></i>
+                                <h3>Communications (Hub Layer)</h3>
+                                <p>The chat interface leverages the Microsoft ecosystem. Conversations mapped to specific entities (e.g., `# Alpha Fund I Team`) can be mirrored as real <strong>Microsoft Teams</strong> channels, ensuring cross-platform visibility without data silos.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 2. CHAT VIEW (Teams-Style) -->
+            <div id="view-chat" class="view" style="flex-direction: row;">
+                <div class="chat-sidebar" id="chat-sidebar-list">
+                    <!-- Channels loaded via JS based on selected Engagement -->
+                </div>
+                <div class="chat-main">
+                    <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px;">
+                        <h3 id="chat-channel-title" style="margin:0 0 5px 0;"># General</h3>
+                        <span id="chat-channel-sub" style="color:var(--text-muted); font-size:0.9em;">Engagement-wide discussion</span>
+                    </div>
+                    <div style="flex-grow: 1; overflow-y: auto; padding-right: 15px;" id="chatFeed">
+                        <!-- Messages loaded via JS -->
+                    </div>
+                    <div class="chat-input">
+                        <i class="fas fa-paperclip" style="color:var(--text-muted); cursor:pointer; font-size:1.2em; margin-right:5px;"></i>
+                        <input type="text" id="chatMsg" placeholder="Type a message, @tag someone, or #link a workpaper..." onkeypress="if(event.key === 'Enter') sendUserMessage();">
+                        <button class="ticket-btn" onclick="sendUserMessage()" style="background:var(--accent-blue);">Send</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <script>
+        // Highly Detailed Data Dictionary
+        const clientData = {
+            'alpha': {
+                name: "Alpha Growth Funds",
+                pbc: { 
+                    total: 45, accepted: 38, pending: 7, 
+                    list_accepted: [ 
+                        { fund: "Alpha Fund I, LP", items: [
+                            {name: "Prior Year Workpapers.zip", status: "Cleared by Sarah J."}, 
+                            {name: "Final Trial Balance.xlsx", status: "Cleared by Alex T."},
+                            {name: "Bank Statements.pdf", status: "Cleared by Alex T."}
+                        ]},
+                        { fund: "Alpha Guarantee LP", items: [
+                            {name: "K-1 Register.xlsx", status: "Cleared by Sarah J."}, 
+                            {name: "Legal Agreements.pdf", status: "Cleared by Michael D."}
+                        ]},
+                        { fund: "North Residential Holdings", items: [
+                            {name: "Chart of Accounts.csv", status: "Cleared by Sarah J."}
+                        ]}
+                    ],
+                    list_pending: [ 
+                        { fund: "Alpha Guarantee LP", items: [
+                            {name: "Final Apportionment Data", status: "Overdue 2 Days", icon: "fa-exclamation-circle"}
+                        ]},
+                        { fund: "North Residential Holdings", items: [
+                            {name: "State K-1s (CA/NY)", status: "Due 5/20", icon: "fa-clock"}
+                        ]}
+                    ] 
+                },
+                trackerRows: `
+                    <tr class="fund-group"><td colspan="12">Alpha Growth Fund I, LP</td></tr>
+                    <tr>
+                        <td>Alpha I</td><td>Alpha Growth Fund I, LP</td>
+                        <td style="display:flex;align-items:center;"><div class="owner-avatar" style="background:#e2231a;">MD</div> Michael D. (Ptr)</td>
+                        <td><span class="badge bd-d"><i class="fas fa-check"></i> Complete</span></td>
+                        <td><span class="badge bd-d">20 / 20</span></td>
+                        <td style="color:#5a6e9a;font-style:italic">N/A</td>
+                        <td style="color:#5a6e9a;font-style:italic">N/A</td>
+                        <td style="color:#5a6e9a;font-style:italic">N/A</td>
+                        <td><span class="badge bd-w">w/ onshore manager</span></td>
+                        <td><span class="badge bd-d">5/15/26</span></td>
+                        <td><span class="badge bd-d">Done</span></td>
+                        <td><span class="badge bd-w">Pending</span></td>
+                    </tr>
+                    <tr>
+                        <td>Alpha I</td><td>Alpha Growth Guarantee LP</td>
+                        <td style="display:flex;align-items:center;"><div class="owner-avatar" style="background:#f5a623; color:black;">SJ</div> Sarah J. (Mgr)</td>
+                        <td><span class="badge bd-e"><i class="fas fa-ban"></i> Blocked</span></td>
+                        <td><span class="badge bd-w">17 / 20</span></td>
+                        <td><span class="badge bd-d"><i class="fas fa-check"></i> Done</span></td>
+                        <td><span class="badge bd-d">Sent 5/10</span></td>
+                        <td><span class="badge bd-d">Received 5/14</span></td>
+                        <td><span class="badge bd-w">comments to KGS</span></td>
+                        <td style="color:#5a6e9a">--</td>
+                        <td style="color:#5a6e9a">--</td>
+                        <td style="color:#5a6e9a">--</td>
+                    </tr>
+                    <tr class="fund-group"><td colspan="12">Alpha Growth Fund II, LP</td></tr>
+                    <tr>
+                        <td>Alpha II</td><td>North Residential Holdings</td>
+                        <td style="display:flex;align-items:center;"><div class="owner-avatar" style="background:#00d287; color:black;">AT</div> Alex T. (Mgr)</td>
+                        <td><span class="badge bd-d"><i class="fas fa-check"></i> Complete</span></td>
+                        <td><span class="badge bd-d">5 / 5</span></td>
+                        <td><span class="badge bd-d"><i class="fas fa-check"></i> Done</span></td>
+                        <td><span class="badge bd-d">Sent 5/12</span></td>
+                        <td><span class="badge bd-w"><i class="fas fa-cog fa-spin"></i> In Processing</span></td>
+                        <td><span class="badge bd-w">w/ offshore team</span></td>
+                        <td style="color:#5a6e9a">--</td>
+                        <td style="color:#5a6e9a">--</td>
+                        <td style="color:#5a6e9a">--</td>
+                    </tr>
+                `,
+                chatSidebar: `
+                    <div style="font-size:0.7em;color:#5a6e9a;padding:10px 25px;font-weight:800;">ENGAGEMENT CHANNELS</div>
+                    <div class="chat-channel active" id="ch-alpha-gen" onclick="switchChat('alpha', 'gen', '# General', 'Engagement-wide discussion')"><i class="fas fa-hashtag"></i> General</div>
+                    <div class="chat-channel" id="ch-alpha-f1" onclick="switchChat('alpha', 'f1', '# AGF Fund I Team', 'Fund specific discussion')"><i class="fas fa-hashtag"></i> AGF Fund I Team</div>
+                    <div class="chat-channel" id="ch-alpha-f2" onclick="switchChat('alpha', 'f2', '# AGF Fund II Team', 'Fund specific discussion')"><i class="fas fa-hashtag"></i> AGF Fund II Team</div>
+                    <div style="font-size:0.7em;color:#5a6e9a;padding:20px 25px 10px 25px;font-weight:800;">OFFICE CHANNELS</div>
+                    <div class="chat-channel" id="ch-alpha-oc" onclick="switchChat('alpha', 'oc', '# Orange County Office', 'Local office discussion')"><i class="fas fa-building"></i> Orange County</div>
+                `,
+                chats: {
+                    'gen': `<div class="msg"><div class="msg-avatar" style="background:#f5a623; color:black">SJ</div><div class="msg-content"><div style="font-weight:600;margin-bottom:5px">Sarah J.</div><div>Morning team. We are pushing to wrap up the Federal provision today.</div></div></div>`,
+                    'f1': `<div class="msg"><div class="msg-avatar" style="background:#e2231a">MD</div><div class="msg-content"><div style="font-weight:600;margin-bottom:5px">Michael D.</div><div>Are we still waiting on the K-3s for Guarantee LP? It shows blocked.</div></div></div>`,
+                    'f2': `<div class="msg"><div class="msg-avatar" style="background:var(--accent-green);color:black">CB</div><div class="msg-content"><div style="font-weight:600;margin-bottom:5px">Chris B.</div><div>Fund II trial balance is loaded and ready for review.</div></div></div>`,
+                    'oc': `<div class="msg"><div class="msg-avatar" style="background:#1c2e5a">HR</div><div class="msg-content"><div style="font-weight:600;margin-bottom:5px">Office Admin</div><div>Reminder: The kitchen will be closed for maintenance at 3 PM today.</div></div></div>`
+                }
+            },
+            'beta': {
+                name: "Beta Holdings",
+                pbc: { 
+                    total: 120, accepted: 25, pending: 95, 
+                    list_accepted: [ 
+                        { fund: "Beta Real Estate Trust", items: [{name: "Prior Year 1065.pdf", status: "Cleared by Alex T."}] }
+                    ],
+                    list_pending: [ 
+                        { fund: "Beta Real Estate Trust", items: [{name: "Trial Balance", status: "Overdue 1 Week", icon: "fa-exclamation-triangle"}] }
+                    ] 
+                },
+                trackerRows: `
+                    <tr class="fund-group"><td colspan="12">Beta Real Estate Trust, LLC</td></tr>
+                    <tr>
+                        <td>BRET</td><td>Beta Commercial Properties</td>
+                        <td style="display:flex;align-items:center;"><div class="owner-avatar" style="background:#00d287; color:black;">AT</div> Alex T. (Mgr)</td>
+                        <td><span class="badge bd-w">Awaiting Data</span></td>
+                        <td><span class="badge bd-e">10 / 50</span></td>
+                        <td style="color:#5a6e9a">--</td>
+                        <td style="color:#5a6e9a">--</td>
+                        <td style="color:#5a6e9a">--</td>
+                        <td><span class="badge bd-e"><i class="fas fa-exclamation-circle"></i> Waiting on K-1s</span></td>
+                        <td style="color:#5a6e9a">--</td>
+                        <td style="color:#5a6e9a">--</td>
+                        <td style="color:#5a6e9a">--</td>
+                    </tr>
+                `,
+                chatSidebar: `
+                    <div style="font-size:0.7em;color:#5a6e9a;padding:10px 25px;font-weight:800;">ENGAGEMENT CHANNELS</div>
+                    <div class="chat-channel active" id="ch-beta-gen" onclick="switchChat('beta', 'gen', '# General', 'Engagement-wide discussion')"><i class="fas fa-hashtag"></i> General</div>
+                `,
+                chats: {
+                    'gen': `<div class="msg"><div class="msg-avatar" style="background:#00d287; color:black">AT</div><div class="msg-content"><div style="font-weight:600;margin-bottom:5px">Alex T.</div><div>We are severely behind on PBC collection for Beta Trust.</div></div></div>`
+                }
+            }
+        };
+
+        // UI Logic
+        function switchClient(clientId) {
+            document.querySelectorAll('.channel').forEach(c => c.classList.remove('active'));
+            document.getElementById('nav-' + clientId).classList.add('active');
+            
+            const data = clientData[clientId];
+            document.getElementById('header-title').innerText = data.name;
+            
+            buildDashboard(data.pbc);
+            document.getElementById('tracker-body').innerHTML = data.trackerRows;
+            document.getElementById('chat-sidebar-list').innerHTML = data.chatSidebar;
+            switchChat(clientId, 'gen', '# General', 'Engagement-wide discussion');
+        }
+
+        function buildDashboard(pbc) {
+            let acceptedHtml = '';
+            pbc.list_accepted.forEach(group => {
+                acceptedHtml += `<div class="pbc-fund-group">${group.fund}</div>`;
+                group.items.forEach(item => {
+                    acceptedHtml += `
+                    <div class="pbc-sub-item">
+                        <span>${item.name}</span> 
+                        <span style="display:flex; align-items:center; gap:15px;">
+                            <span style="color:var(--accent-green); font-size:0.9em;"><i class="fas fa-check-circle"></i> ${item.status}</span> 
+                            <a href="#" class="dg-link" onclick="event.preventDefault(); alert('Jumping to ${item.name} in DG Docs...')"><i class="fas fa-folder-open"></i> DG Docs</a>
+                        </span>
+                    </div>`;
+                });
+            });
+
+            let pendingHtml = '';
+            pbc.list_pending.forEach(group => {
+                pendingHtml += `<div class="pbc-fund-group">${group.fund}</div>`;
+                group.items.forEach(item => {
+                    pendingHtml += `
+                    <div class="pbc-sub-item">
+                        <span>${item.name}</span> 
+                        <span style="display:flex; align-items:center; gap:15px;">
+                            <span style="color:var(--accent-orange); font-size:0.9em;"><i class="fas ${item.icon}"></i> ${item.status}</span> 
+                            <a href="#" class="dg-link" style="background:rgba(245,166,35,0.1); color:var(--accent-orange);" onclick="event.preventDefault(); alert('Jumping to upload request link...')"><i class="fas fa-bell"></i> Request Link</a>
+                        </span>
+                    </div>`;
+                });
+            });
+
+            document.getElementById('dash-grid-content').innerHTML = `
+                <div class="dash-card">
+                    <h3 style="font-size: 1.5em; margin-top:0; margin-bottom: 20px; color:var(--text-muted);"><i class="fas fa-cloud-upload-alt" style="color:var(--accent-blue);"></i> PBC Collection Tracker</h3>
+                    <div class="accordion-item"><div class="accordion-header" style="cursor:default; padding: 18px 20px;"><span>Total Requested Files</span><span style="font-weight:bold; font-size:1.2em;">${pbc.total}</span></div></div>
+                    <div class="accordion-item">
+                        <div class="accordion-header" onclick="toggleAccordion(this)"><span>Accepted by KPMG</span><span style="color:var(--accent-green); font-weight:bold; font-size:1.2em;">${pbc.accepted} <i class="fas fa-chevron-down chevron"></i></span></div>
+                        <div class="accordion-content"><div style="padding: 0 0 20px 0;">${acceptedHtml}</div></div>
+                    </div>
+                    <div class="accordion-item">
+                        <div class="accordion-header" onclick="toggleAccordion(this)"><span>Pending Client Upload</span><span style="color:var(--accent-orange); font-weight:bold; font-size:1.2em;">${pbc.pending} <i class="fas fa-chevron-down chevron"></i></span></div>
+                        <div class="accordion-content"><div style="padding: 0 0 20px 0;">${pendingHtml}</div></div>
+                    </div>
+                </div>`;
+        }
+
+        function toggleAccordion(header) {
+            const content = header.nextElementSibling;
+            const wasOpen = content.classList.contains('open');
+            document.querySelectorAll('.accordion-content.open').forEach(c => c.classList.remove('open'));
+            if (!wasOpen) { content.classList.add('open'); }
+        }
+
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
+        }
+
+        function switchMainView(viewId, btnElement) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.global-sidebar .icon-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            btnElement.classList.add('active');
+        }
+
+        function switchChat(clientId, chatId, title, sub) {
+            document.querySelectorAll('.chat-channel').forEach(c => c.classList.remove('active'));
+            document.getElementById(`ch-${clientId}-${chatId}`).classList.add('active');
+            document.getElementById('chat-channel-title').innerText = title;
+            document.getElementById('chat-channel-sub').innerText = sub;
+            document.getElementById('chatFeed').innerHTML = clientData[clientId].chats[chatId];
+        }
+
+        function sendUserMessage() {
+            const input = document.getElementById('chatMsg');
+            if (!input.value.trim()) return;
+            const feed = document.getElementById('chatFeed');
+            const html = `<div class="msg"><div class="msg-avatar" style="background:var(--accent-red)">ME</div><div class="msg-content"><div style="font-weight:600;margin-bottom:5px">Current User</div><div>${input.value}</div></div></div>`;
+            feed.insertAdjacentHTML('beforeend', html);
+            input.value = '';
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function filterEngagements() {
+            const input = document.getElementById('search-engagements').value.toUpperCase();
+            const channels = document.getElementById('engagement-list').getElementsByClassName('channel');
+            for (let i = 0; i < channels.length; i++) {
+                let txtValue = channels[i].textContent || channels[i].innerText;
+                if (txtValue.toUpperCase().indexOf(input) > -1) {
+                    channels[i].style.display = "";
+                } else {
+                    channels[i].style.display = "none";
+                }
+            }
+        }
+
+        window.onload = () => switchClient('alpha');
+    </script>
+</body>
+</html>
